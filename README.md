@@ -24,8 +24,11 @@ flowchart LR
 
 ## Quick start
 
-Use the kind cluster and Gateway from `make up` in brewq-k8s. The
-`ghcr.io/mythicc123/brewq-service:0.1.0` image needs to be available.
+For the manual Helm path, run `make up` and `make deploy` in brewq-k8s
+before installing monitoring. For GitOps, use the
+[brewq-gitops quick start](https://github.com/Mythicc123/brewq-gitops#quick-start)
+to install Brewq and monitoring together. Both paths use the public
+`ghcr.io/mythicc123/brewq-service:0.1.0` image.
 Install Helm 4, kubectl, Make, OpenSSL, curl and jq. Set `KUBECONFIG` if the
 kind context is in a separate file. Confirm it points to the brewq cluster
 before installing.
