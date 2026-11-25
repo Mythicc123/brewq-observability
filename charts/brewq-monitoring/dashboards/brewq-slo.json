@@ -1,0 +1,396 @@
+{
+  "uid": "brewq-slo",
+  "title": "Brewq SLOs",
+  "tags": [
+    "brewq"
+  ],
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": true,
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "refresh": "30s",
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Availability SLI \u00b7 5m",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 6,
+        "h": 5
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "graphMode": "none"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "1 - brewq:availability_error_ratio:5m",
+          "legendFormat": "Non-5xx",
+          "instant": true,
+          "range": false
+        }
+      ],
+      "description": "Objective 99.5%."
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Latency SLI \u00b7 5m",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 6,
+        "y": 0,
+        "w": 6,
+        "h": 5
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "graphMode": "none"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "1 - brewq:latency_error_ratio:5m",
+          "legendFormat": "Within 300 ms",
+          "instant": true,
+          "range": false
+        }
+      ],
+      "description": "Objective 99%."
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Availability budget left \u00b7 30d",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 6,
+        "h": 5
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "graphMode": "none"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "1 - ((sum(increase(http_requests_total{job=\"brewq\", route!~\"/healthz|/readyz|/metrics\", code=~\"5..\"}[30d])) or 0 * sum(increase(http_requests_total{job=\"brewq\", route!~\"/healthz|/readyz|/metrics\"}[30d]))) / sum(increase(http_requests_total{job=\"brewq\", route!~\"/healthz|/readyz|/metrics\"}[30d]))) / 0.005",
+          "legendFormat": "Budget remaining",
+          "instant": true,
+          "range": false
+        }
+      ],
+      "description": "Uses retained samples. Local Prometheus keeps up to seven days and loses this history when its pod is replaced."
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Latency budget left \u00b7 30d",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 18,
+        "y": 0,
+        "w": 6,
+        "h": 5
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "graphMode": "none"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "1 - (1 - sum(increase(http_request_duration_seconds_bucket{job=\"brewq\", route!~\"/healthz|/readyz|/metrics\", le=\"0.3\"}[30d])) / sum(increase(http_request_duration_seconds_count{job=\"brewq\", route!~\"/healthz|/readyz|/metrics\"}[30d]))) / 0.01",
+          "legendFormat": "Budget remaining",
+          "instant": true,
+          "range": false
+        }
+      ],
+      "description": "Uses retained samples. Local Prometheus keeps up to seven days and loses this history when its pod is replaced."
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Availability burn rate",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 5,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix:\u00d7"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "showLegend": true,
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "brewq:availability_error_ratio:5m / 0.005",
+          "legendFormat": "5m",
+          "instant": false,
+          "range": true
+        },
+        {
+          "refId": "B",
+          "expr": "brewq:availability_error_ratio:30m / 0.005",
+          "legendFormat": "30m",
+          "instant": false,
+          "range": true
+        },
+        {
+          "refId": "C",
+          "expr": "brewq:availability_error_ratio:1h / 0.005",
+          "legendFormat": "1h",
+          "instant": false,
+          "range": true
+        },
+        {
+          "refId": "D",
+          "expr": "brewq:availability_error_ratio:2h / 0.005",
+          "legendFormat": "2h",
+          "instant": false,
+          "range": true
+        },
+        {
+          "refId": "E",
+          "expr": "brewq:availability_error_ratio:6h / 0.005",
+          "legendFormat": "6h",
+          "instant": false,
+          "range": true
+        },
+        {
+          "refId": "F",
+          "expr": "brewq:availability_error_ratio:1d / 0.005",
+          "legendFormat": "1d",
+          "instant": false,
+          "range": true
+        },
+        {
+          "refId": "G",
+          "expr": "brewq:availability_error_ratio:3d / 0.005",
+          "legendFormat": "3d",
+          "instant": false,
+          "range": true
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Latency burn rate",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 5,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix:\u00d7"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "showLegend": true,
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "brewq:latency_error_ratio:5m / 0.01",
+          "legendFormat": "5m",
+          "instant": false,
+          "range": true
+        },
+        {
+          "refId": "B",
+          "expr": "brewq:latency_error_ratio:30m / 0.01",
+          "legendFormat": "30m",
+          "instant": false,
+          "range": true
+        },
+        {
+          "refId": "C",
+          "expr": "brewq:latency_error_ratio:1h / 0.01",
+          "legendFormat": "1h",
+          "instant": false,
+          "range": true
+        },
+        {
+          "refId": "D",
+          "expr": "brewq:latency_error_ratio:2h / 0.01",
+          "legendFormat": "2h",
+          "instant": false,
+          "range": true
+        },
+        {
+          "refId": "E",
+          "expr": "brewq:latency_error_ratio:6h / 0.01",
+          "legendFormat": "6h",
+          "instant": false,
+          "range": true
+        },
+        {
+          "refId": "F",
+          "expr": "brewq:latency_error_ratio:1d / 0.01",
+          "legendFormat": "1d",
+          "instant": false,
+          "range": true
+        },
+        {
+          "refId": "G",
+          "expr": "brewq:latency_error_ratio:3d / 0.01",
+          "legendFormat": "3d",
+          "instant": false,
+          "range": true
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "Alert state",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 13,
+        "w": 24,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "max": 2,
+          "decimals": 0,
+          "custom": {
+            "lineInterpolation": "stepAfter",
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "showLegend": true,
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "max by (alertname) ((ALERTS{alertname=~\"Brewq.*\", alertstate=\"pending\"}) or (2 * ALERTS{alertname=~\"Brewq.*\", alertstate=\"firing\"}))",
+          "legendFormat": "{{alertname}}",
+          "instant": false,
+          "range": true
+        }
+      ],
+      "description": "1 is pending, 2 is firing. An inactive alert has no series."
+    }
+  ]
+}

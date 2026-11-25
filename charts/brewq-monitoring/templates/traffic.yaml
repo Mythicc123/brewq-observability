@@ -1,0 +1,50 @@
+{{- if .Values.trafficGenerator.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: brewq-traffic
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "brewq-monitoring.labels" . | nindent 4 }}
+    app.kubernetes.io/component: traffic-generator
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: brewq
+      app.kubernetes.io/component: traffic-generator
+  template:
+    metadata:
+      labels:
+        {{- include "brewq-monitoring.labels" . | nindent 8 }}
+        app.kubernetes.io/component: traffic-generator
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: loadgen
+          image: {{ printf "%s:%s" .Values.trafficGenerator.image.repository .Values.trafficGenerator.image.tag | quote }}
+          imagePullPolicy: IfNotPresent
+          command: ["/loadgen"]
+          args:
+            - -target=http://brewq.brewq.svc.cluster.local
+            - {{ printf "-rps=%v" .Values.trafficGenerator.rps | quote }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: 20m
+              memory: 16Mi
+            limits:
+              memory: 64Mi
+{{- end }}

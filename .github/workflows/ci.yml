@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Install validation tools
+        shell: bash
+        run: |
+          mkdir -p .cache/ci/bin
+          cd .cache/ci
+
+          download() {
+            curl --fail --silent --show-error --location --retry 3 --output "$1" "$2"
+            printf '%s  %s\n' "$3" "$1" | sha256sum -c -
+          }
+
+          download helm.tgz https://get.helm.sh/helm-v4.3.2-linux-amd64.tar.gz \
+            d1c0278d46beab79582d7e50f5b3dc206944ba8e577cde618513fd07daa53983
+          tar -xzf helm.tgz -C bin --strip-components=1 linux-amd64/helm
+
+          download promtool.tgz https://github.com/prometheus/prometheus/releases/download/v3.16.0/prometheus-3.16.0.linux-amd64.tar.gz \
+            68727009472a2c02e1ff7f062fd5b3e637285bffc8fc2d340c76fb449d6e0f34
+          tar -xzf promtool.tgz -C bin --strip-components=1 prometheus-3.16.0.linux-amd64/promtool
+
+          download kubeconform.tgz https://github.com/yannh/kubeconform/releases/download/v0.8.0/kubeconform-linux-amd64.tar.gz \
+            9bc2bffbf71f261128533edaf912153948b7ff238f9a531ae6d34466ec287883
+          tar -xzf kubeconform.tgz -C bin kubeconform
+
+          download bin/jq https://github.com/jqlang/jq/releases/download/jq-1.8.2/jq-linux-amd64 \
+            b1c22172dd303f3be49e935aa56aa48a8b7a46e0bc838b4997d3bb451495870f
+          chmod +x bin/jq
+
+          echo "$PWD/bin" >> "$GITHUB_PATH"
+
+      - name: Validate chart, rules and dashboards
+        run: make lint

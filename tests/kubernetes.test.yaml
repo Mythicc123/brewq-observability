@@ -1,0 +1,106 @@
+rule_files:
+  - ../charts/brewq-monitoring/files/brewq-slo.rules.yaml
+evaluation_interval: 30s
+
+tests:
+  - name: Three restarts within 10 minutes
+    interval: 30s
+    input_series:
+      - series: "kube_pod_container_status_restarts_total{namespace=\"brewq\",pod=\"brewq-test\",container=\"brewq\"}"
+        values: "0x20 1 2 3x8"
+    alert_rule_test:
+      - eval_time: 11m
+        alertname: BrewqPodCrashLooping
+        exp_alerts: []
+      - eval_time: 13m30s
+        alertname: BrewqPodCrashLooping
+        exp_alerts:
+          - exp_labels:
+              severity: page
+              namespace: brewq
+              pod: brewq-test
+              container: brewq
+            exp_annotations:
+              summary: Brewq container is crash looping
+              description: A brewq container restarted at least three times in 10 minutes or is in CrashLoopBackOff.
+              runbook_url: https://github.com/Mythicc123/brewq-gitops/blob/main/drills/03-crashloop.md
+
+  - name: CrashLoopBackOff must last two minutes
+    interval: 30s
+    input_series:
+      - series: "kube_pod_container_status_waiting_reason{namespace=\"brewq\",pod=\"brewq-test\",container=\"brewq\",reason=\"CrashLoopBackOff\"}"
+        values: "1x6"
+    alert_rule_test:
+      - eval_time: 1m30s
+        alertname: BrewqPodCrashLooping
+        exp_alerts: []
+      - eval_time: 2m
+        alertname: BrewqPodCrashLooping
+        exp_alerts:
+          - exp_labels:
+              severity: page
+              namespace: brewq
+              pod: brewq-test
+              container: brewq
+            exp_annotations:
+              summary: Brewq container is crash looping
+              description: A brewq container restarted at least three times in 10 minutes or is in CrashLoopBackOff.
+              runbook_url: https://github.com/Mythicc123/brewq-gitops/blob/main/drills/03-crashloop.md
+
+  - name: OOMKilled last termination
+    interval: 30s
+    input_series:
+      - series: "kube_pod_container_status_last_terminated_reason{namespace=\"brewq\",pod=\"brewq-test\",container=\"brewq\",reason=\"OOMKilled\"}"
+        values: "1x4"
+    alert_rule_test:
+      - eval_time: 1m
+        alertname: BrewqPodOOMKilled
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+              namespace: brewq
+              pod: brewq-test
+              container: brewq
+              reason: OOMKilled
+            exp_annotations:
+              summary: Brewq container was OOM killed
+              description: The last termination of a brewq container was caused by an out-of-memory kill.
+              runbook_url: https://github.com/Mythicc123/brewq-gitops/blob/main/drills/04-memory-leak.md
+
+  - name: Target up survives another target going down and then both fail
+    interval: 30s
+    input_series:
+      - series: "up{job=\"brewq\",namespace=\"brewq\",instance=\"first\"}"
+        values: "0x8"
+      - series: "up{job=\"brewq\",namespace=\"brewq\",instance=\"second\"}"
+        values: "1x2 0x5"
+    alert_rule_test:
+      - eval_time: 1m
+        alertname: BrewqTargetDown
+        exp_alerts: []
+      - eval_time: 3m
+        alertname: BrewqTargetDown
+        exp_alerts: []
+      - eval_time: 3m30s
+        alertname: BrewqTargetDown
+        exp_alerts:
+          - exp_labels:
+              severity: page
+            exp_annotations:
+              summary: Brewq has no healthy scrape targets
+              description: Prometheus has been unable to scrape any brewq target for two minutes.
+              runbook_url: https://github.com/Mythicc123/brewq-gitops/blob/main/drills/03-crashloop.md
+
+  - name: Missing targets still fire
+    interval: 30s
+    input_series:
+    alert_rule_test:
+      - eval_time: 2m
+        alertname: BrewqTargetDown
+        exp_alerts:
+          - exp_labels:
+              severity: page
+            exp_annotations:
+              summary: Brewq has no healthy scrape targets
+              description: Prometheus has been unable to scrape any brewq target for two minutes.
+              runbook_url: https://github.com/Mythicc123/brewq-gitops/blob/main/drills/03-crashloop.md

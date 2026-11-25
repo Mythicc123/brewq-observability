@@ -1,0 +1,167 @@
+groups:
+  - name: brewq-slo
+    rules:
+      # A healthy service may never have emitted a 5xx series.
+      # Zero-fill the numerator only when the total series exists.
+      - record: brewq:availability_error_ratio:5m
+        expr: |
+          (sum(rate(http_requests_total{job="brewq", route!~"/healthz|/readyz|/metrics", code=~"5.."}[5m]))
+            or 0 * sum(rate(http_requests_total{job="brewq", route!~"/healthz|/readyz|/metrics"}[5m])))
+          / sum(rate(http_requests_total{job="brewq", route!~"/healthz|/readyz|/metrics"}[5m]))
+      - record: brewq:availability_error_ratio:30m
+        expr: |
+          (sum(rate(http_requests_total{job="brewq", route!~"/healthz|/readyz|/metrics", code=~"5.."}[30m]))
+            or 0 * sum(rate(http_requests_total{job="brewq", route!~"/healthz|/readyz|/metrics"}[30m])))
+          / sum(rate(http_requests_total{job="brewq", route!~"/healthz|/readyz|/metrics"}[30m]))
+      - record: brewq:availability_error_ratio:1h
+        expr: |
+          (sum(rate(http_requests_total{job="brewq", route!~"/healthz|/readyz|/metrics", code=~"5.."}[1h]))
+            or 0 * sum(rate(http_requests_total{job="brewq", route!~"/healthz|/readyz|/metrics"}[1h])))
+          / sum(rate(http_requests_total{job="brewq", route!~"/healthz|/readyz|/metrics"}[1h]))
+      - record: brewq:availability_error_ratio:2h
+        expr: |
+          (sum(rate(http_requests_total{job="brewq", route!~"/healthz|/readyz|/metrics", code=~"5.."}[2h]))
+            or 0 * sum(rate(http_requests_total{job="brewq", route!~"/healthz|/readyz|/metrics"}[2h])))
+          / sum(rate(http_requests_total{job="brewq", route!~"/healthz|/readyz|/metrics"}[2h]))
+      - record: brewq:availability_error_ratio:6h
+        expr: |
+          (sum(rate(http_requests_total{job="brewq", route!~"/healthz|/readyz|/metrics", code=~"5.."}[6h]))
+            or 0 * sum(rate(http_requests_total{job="brewq", route!~"/healthz|/readyz|/metrics"}[6h])))
+          / sum(rate(http_requests_total{job="brewq", route!~"/healthz|/readyz|/metrics"}[6h]))
+      - record: brewq:availability_error_ratio:1d
+        expr: |
+          (sum(rate(http_requests_total{job="brewq", route!~"/healthz|/readyz|/metrics", code=~"5.."}[1d]))
+            or 0 * sum(rate(http_requests_total{job="brewq", route!~"/healthz|/readyz|/metrics"}[1d])))
+          / sum(rate(http_requests_total{job="brewq", route!~"/healthz|/readyz|/metrics"}[1d]))
+      - record: brewq:availability_error_ratio:3d
+        expr: |
+          (sum(rate(http_requests_total{job="brewq", route!~"/healthz|/readyz|/metrics", code=~"5.."}[3d]))
+            or 0 * sum(rate(http_requests_total{job="brewq", route!~"/healthz|/readyz|/metrics"}[3d])))
+          / sum(rate(http_requests_total{job="brewq", route!~"/healthz|/readyz|/metrics"}[3d]))
+      # Use the exact 300 ms bucket. With zero traffic the ratio is undefined.
+      - record: brewq:latency_error_ratio:5m
+        expr: |
+          1 - sum(rate(http_request_duration_seconds_bucket{job="brewq", route!~"/healthz|/readyz|/metrics", le="0.3"}[5m]))
+              / sum(rate(http_request_duration_seconds_count{job="brewq", route!~"/healthz|/readyz|/metrics"}[5m]))
+      - record: brewq:latency_error_ratio:30m
+        expr: |
+          1 - sum(rate(http_request_duration_seconds_bucket{job="brewq", route!~"/healthz|/readyz|/metrics", le="0.3"}[30m]))
+              / sum(rate(http_request_duration_seconds_count{job="brewq", route!~"/healthz|/readyz|/metrics"}[30m]))
+      - record: brewq:latency_error_ratio:1h
+        expr: |
+          1 - sum(rate(http_request_duration_seconds_bucket{job="brewq", route!~"/healthz|/readyz|/metrics", le="0.3"}[1h]))
+              / sum(rate(http_request_duration_seconds_count{job="brewq", route!~"/healthz|/readyz|/metrics"}[1h]))
+      - record: brewq:latency_error_ratio:2h
+        expr: |
+          1 - sum(rate(http_request_duration_seconds_bucket{job="brewq", route!~"/healthz|/readyz|/metrics", le="0.3"}[2h]))
+              / sum(rate(http_request_duration_seconds_count{job="brewq", route!~"/healthz|/readyz|/metrics"}[2h]))
+      - record: brewq:latency_error_ratio:6h
+        expr: |
+          1 - sum(rate(http_request_duration_seconds_bucket{job="brewq", route!~"/healthz|/readyz|/metrics", le="0.3"}[6h]))
+              / sum(rate(http_request_duration_seconds_count{job="brewq", route!~"/healthz|/readyz|/metrics"}[6h]))
+      - record: brewq:latency_error_ratio:1d
+        expr: |
+          1 - sum(rate(http_request_duration_seconds_bucket{job="brewq", route!~"/healthz|/readyz|/metrics", le="0.3"}[1d]))
+              / sum(rate(http_request_duration_seconds_count{job="brewq", route!~"/healthz|/readyz|/metrics"}[1d]))
+      - record: brewq:latency_error_ratio:3d
+        expr: |
+          1 - sum(rate(http_request_duration_seconds_bucket{job="brewq", route!~"/healthz|/readyz|/metrics", le="0.3"}[3d]))
+              / sum(rate(http_request_duration_seconds_count{job="brewq", route!~"/healthz|/readyz|/metrics"}[3d]))
+      # Evaluate alerts after the recording rules in the same group so each
+      # evaluation uses the latest ratios.
+      # Hold for two minutes to ignore a brief crossing during a rollout.
+      - alert: BrewqAvailabilityBurnFast
+        expr: |
+          (brewq:availability_error_ratio:1h > 14.4 * 0.005
+            and brewq:availability_error_ratio:5m > 14.4 * 0.005)
+          or
+          (brewq:availability_error_ratio:6h > 6 * 0.005
+            and brewq:availability_error_ratio:30m > 6 * 0.005)
+        for: 2m
+        labels:
+          severity: page
+        annotations:
+          summary: Brewq availability is burning budget quickly
+          description: The 5xx rate exceeds the fast burn threshold in both windows of a pair.
+          runbook_url: https://github.com/Mythicc123/brewq-gitops/blob/main/drills/01-bad-release.md
+      # Hold for five minutes to avoid tickets for transient threshold crossings.
+      - alert: BrewqAvailabilityBurnSlow
+        expr: |
+          (brewq:availability_error_ratio:1d > 3 * 0.005
+            and brewq:availability_error_ratio:2h > 3 * 0.005)
+          or
+          (brewq:availability_error_ratio:3d > 1 * 0.005
+            and brewq:availability_error_ratio:6h > 1 * 0.005)
+        for: 5m
+        labels:
+          severity: ticket
+        annotations:
+          summary: Brewq availability is burning budget steadily
+          description: The 5xx rate exceeds the slow burn threshold in both windows of a pair.
+          runbook_url: https://github.com/Mythicc123/brewq-gitops/blob/main/drills/01-bad-release.md
+      # Hold for two minutes to ignore a brief crossing during a rollout.
+      - alert: BrewqLatencyBurnFast
+        expr: |
+          (brewq:latency_error_ratio:1h > 14.4 * 0.01
+            and brewq:latency_error_ratio:5m > 14.4 * 0.01)
+          or
+          (brewq:latency_error_ratio:6h > 6 * 0.01
+            and brewq:latency_error_ratio:30m > 6 * 0.01)
+        for: 2m
+        labels:
+          severity: page
+        annotations:
+          summary: Brewq latency is burning budget quickly
+          description: The share of requests taking over 300 ms exceeds the fast burn threshold in both windows of a pair.
+          runbook_url: https://github.com/Mythicc123/brewq-gitops/blob/main/drills/02-slow-release.md
+      # Hold for five minutes to avoid tickets for transient threshold crossings.
+      - alert: BrewqLatencyBurnSlow
+        expr: |
+          (brewq:latency_error_ratio:1d > 3 * 0.01
+            and brewq:latency_error_ratio:2h > 3 * 0.01)
+          or
+          (brewq:latency_error_ratio:3d > 1 * 0.01
+            and brewq:latency_error_ratio:6h > 1 * 0.01)
+        for: 5m
+        labels:
+          severity: ticket
+        annotations:
+          summary: Brewq latency is burning budget steadily
+          description: The share of requests taking over 300 ms exceeds the slow burn threshold in both windows of a pair.
+          runbook_url: https://github.com/Mythicc123/brewq-gitops/blob/main/drills/02-slow-release.md
+      # Hold for two minutes to filter transient restart or waiting signals.
+      # Group by container so both signals share one alert.
+      - alert: BrewqPodCrashLooping
+        expr: |
+          max by (namespace, pod, container) (increase(kube_pod_container_status_restarts_total{namespace="brewq", container="brewq"}[10m])) >= 3
+          or
+          max by (namespace, pod, container) (kube_pod_container_status_waiting_reason{namespace="brewq", container="brewq", reason="CrashLoopBackOff"} == 1)
+        for: 2m
+        labels:
+          severity: page
+        annotations:
+          summary: Brewq container is crash looping
+          description: A brewq container restarted at least three times in 10 minutes or is in CrashLoopBackOff.
+          runbook_url: https://github.com/Mythicc123/brewq-gitops/blob/main/drills/03-crashloop.md
+      # Wait one minute for kube-state-metrics to confirm the last termination reason.
+      - alert: BrewqPodOOMKilled
+        expr: |
+          kube_pod_container_status_last_terminated_reason{namespace="brewq", container="brewq", reason="OOMKilled"} == 1
+        for: 1m
+        labels:
+          severity: ticket
+        annotations:
+          summary: Brewq container was OOM killed
+          description: The last termination of a brewq container was caused by an out-of-memory kill.
+          runbook_url: https://github.com/Mythicc123/brewq-gitops/blob/main/drills/04-memory-leak.md
+      # Allow two minutes for target discovery, a rollout or a brief scrape outage.
+      - alert: BrewqTargetDown
+        expr: |
+          absent(up{job="brewq"} == 1)
+        for: 2m
+        labels:
+          severity: page
+        annotations:
+          summary: Brewq has no healthy scrape targets
+          description: Prometheus has been unable to scrape any brewq target for two minutes.
+          runbook_url: https://github.com/Mythicc123/brewq-gitops/blob/main/drills/03-crashloop.md

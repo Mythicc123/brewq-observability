@@ -1,0 +1,9 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: brewq-slo
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "brewq-monitoring.labels" . | nindent 4 }}
+spec:
+  {{- .Files.Get "files/brewq-slo.rules.yaml" | trimSuffix "\n" | nindent 2 }}

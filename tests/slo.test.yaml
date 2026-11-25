@@ -1,0 +1,166 @@
+rule_files:
+  - ../charts/brewq-monitoring/files/brewq-slo.rules.yaml
+evaluation_interval: 30s
+
+tests:
+  - name: Healthy traffic with failing slow readiness probes
+    interval: 30s
+    input_series:
+      - series: "up{job=\"brewq\",namespace=\"brewq\"}"
+        values: "1x140"
+      - series: "http_requests_total{job=\"brewq\",namespace=\"brewq\",method=\"GET\",route=\"/menu\",code=\"200\"}"
+        values: "0+100x140"
+      - series: "http_request_duration_seconds_bucket{job=\"brewq\",namespace=\"brewq\",method=\"GET\",route=\"/menu\",le=\"0.3\"}"
+        values: "0+100x140"
+      - series: "http_request_duration_seconds_count{job=\"brewq\",namespace=\"brewq\",method=\"GET\",route=\"/menu\"}"
+        values: "0+100x140"
+      - series: "http_requests_total{job=\"brewq\",namespace=\"brewq\",route=\"/readyz\",code=\"503\"}"
+        values: "0+100x140"
+      - series: "http_request_duration_seconds_bucket{job=\"brewq\",namespace=\"brewq\",route=\"/readyz\",le=\"0.3\"}"
+        values: "0x140"
+      - series: "http_request_duration_seconds_count{job=\"brewq\",namespace=\"brewq\",route=\"/readyz\"}"
+        values: "0+100x140"
+    alert_rule_test:
+      - eval_time: 70m
+        alertname: BrewqAvailabilityBurnFast
+        exp_alerts: []
+      - eval_time: 70m
+        alertname: BrewqAvailabilityBurnSlow
+        exp_alerts: []
+      - eval_time: 70m
+        alertname: BrewqLatencyBurnFast
+        exp_alerts: []
+      - eval_time: 70m
+        alertname: BrewqLatencyBurnSlow
+        exp_alerts: []
+      - eval_time: 70m
+        alertname: BrewqPodCrashLooping
+        exp_alerts: []
+      - eval_time: 70m
+        alertname: BrewqPodOOMKilled
+        exp_alerts: []
+      - eval_time: 70m
+        alertname: BrewqTargetDown
+        exp_alerts: []
+    promql_expr_test:
+      - expr: brewq:availability_error_ratio:5m
+        eval_time: 70m
+        exp_samples:
+          - labels: '{__name__="brewq:availability_error_ratio:5m"}'
+            value: 0
+      - expr: brewq:latency_error_ratio:5m
+        eval_time: 70m
+        exp_samples:
+          - labels: '{__name__="brewq:latency_error_ratio:5m"}'
+            value: 0
+
+  - name: 30 percent errors after six hours of healthy steady traffic
+    interval: 30s
+    input_series:
+      - series: "up{job=\"brewq\",namespace=\"brewq\"}"
+        values: "1x760"
+      - series: "http_requests_total{job=\"brewq\",namespace=\"brewq\",method=\"GET\",route=\"/menu\",code=\"200\"}"
+        values: "0+100x720 72070+70x39"
+      - series: "http_request_duration_seconds_bucket{job=\"brewq\",namespace=\"brewq\",method=\"GET\",route=\"/menu\",le=\"0.3\"}"
+        values: "0+100x760"
+      - series: "http_request_duration_seconds_count{job=\"brewq\",namespace=\"brewq\",method=\"GET\",route=\"/menu\"}"
+        values: "0+100x760"
+      - series: "http_requests_total{job=\"brewq\",namespace=\"brewq\",method=\"GET\",route=\"/menu\",code=\"500\"}"
+        values: "0x720 30+30x39"
+    alert_rule_test:
+      - eval_time: 6h14m
+        alertname: BrewqAvailabilityBurnFast
+        exp_alerts: []
+      - eval_time: 6h16m
+        alertname: BrewqAvailabilityBurnFast
+        exp_alerts: []
+      - eval_time: 6h16m30s
+        alertname: BrewqAvailabilityBurnFast
+        exp_alerts:
+          - exp_labels:
+              severity: page
+            exp_annotations:
+              summary: Brewq availability is burning budget quickly
+              description: The 5xx rate exceeds the fast burn threshold in both windows of a pair.
+              runbook_url: https://github.com/Mythicc123/brewq-gitops/blob/main/drills/01-bad-release.md
+      - eval_time: 6h16m30s
+        alertname: BrewqLatencyBurnFast
+        exp_alerts: []
+
+  - name: All requests take 400 ms after six hours of healthy traffic
+    interval: 30s
+    input_series:
+      - series: "up{job=\"brewq\",namespace=\"brewq\"}"
+        values: "1x760"
+      - series: "http_requests_total{job=\"brewq\",namespace=\"brewq\",method=\"GET\",route=\"/menu\",code=\"200\"}"
+        values: "0+100x760"
+      - series: "http_request_duration_seconds_bucket{job=\"brewq\",namespace=\"brewq\",method=\"GET\",route=\"/menu\",le=\"0.3\"}"
+        values: "0+100x720 72000x39"
+      - series: "http_request_duration_seconds_count{job=\"brewq\",namespace=\"brewq\",method=\"GET\",route=\"/menu\"}"
+        values: "0+100x760"
+      - series: "http_request_duration_seconds_bucket{job=\"brewq\",namespace=\"brewq\",route=\"/menu\",method=\"GET\",le=\"0.5\"}"
+        values: "0+100x760"
+    alert_rule_test:
+      - eval_time: 6h10m
+        alertname: BrewqLatencyBurnFast
+        exp_alerts: []
+      - eval_time: 6h11m
+        alertname: BrewqLatencyBurnFast
+        exp_alerts:
+          - exp_labels:
+              severity: page
+            exp_annotations:
+              summary: Brewq latency is burning budget quickly
+              description: The share of requests taking over 300 ms exceeds the fast burn threshold in both windows of a pair.
+              runbook_url: https://github.com/Mythicc123/brewq-gitops/blob/main/drills/02-slow-release.md
+      - eval_time: 6h11m
+        alertname: BrewqAvailabilityBurnFast
+        exp_alerts: []
+
+  - name: Steady 2 percent errors and 4 percent slow requests fire only slow burns
+    interval: 1m
+    input_series:
+      - series: "up{job=\"brewq\",namespace=\"brewq\"}"
+        values: "1x1440"
+      - series: "http_requests_total{job=\"brewq\",namespace=\"brewq\",method=\"GET\",route=\"/menu\",code=\"200\"}"
+        values: "0+98x1440"
+      - series: "http_request_duration_seconds_bucket{job=\"brewq\",namespace=\"brewq\",method=\"GET\",route=\"/menu\",le=\"0.3\"}"
+        values: "0+96x1440"
+      - series: "http_request_duration_seconds_count{job=\"brewq\",namespace=\"brewq\",method=\"GET\",route=\"/menu\"}"
+        values: "0+100x1440"
+      - series: "http_requests_total{job=\"brewq\",namespace=\"brewq\",method=\"GET\",route=\"/menu\",code=\"500\"}"
+        values: "0+2x1440"
+    alert_rule_test:
+      - eval_time: 1d
+        alertname: BrewqAvailabilityBurnFast
+        exp_alerts: []
+      - eval_time: 1d
+        alertname: BrewqAvailabilityBurnSlow
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+            exp_annotations:
+              summary: Brewq availability is burning budget steadily
+              description: The 5xx rate exceeds the slow burn threshold in both windows of a pair.
+              runbook_url: https://github.com/Mythicc123/brewq-gitops/blob/main/drills/01-bad-release.md
+      - eval_time: 1d
+        alertname: BrewqLatencyBurnFast
+        exp_alerts: []
+      - eval_time: 1d
+        alertname: BrewqLatencyBurnSlow
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+            exp_annotations:
+              summary: Brewq latency is burning budget steadily
+              description: The share of requests taking over 300 ms exceeds the slow burn threshold in both windows of a pair.
+              runbook_url: https://github.com/Mythicc123/brewq-gitops/blob/main/drills/02-slow-release.md
+      - eval_time: 1d
+        alertname: BrewqPodCrashLooping
+        exp_alerts: []
+      - eval_time: 1d
+        alertname: BrewqPodOOMKilled
+        exp_alerts: []
+      - eval_time: 1d
+        alertname: BrewqTargetDown
+        exp_alerts: []

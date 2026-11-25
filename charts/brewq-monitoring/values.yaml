@@ -1,0 +1,9 @@
+trafficGenerator:
+  enabled: true
+  rps: 5
+  image:
+    repository: ghcr.io/mythicc123/brewq-service
+    tag: "0.1.0"
+
+routes:
+  enabled: true
