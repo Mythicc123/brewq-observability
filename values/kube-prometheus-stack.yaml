@@ -1,5 +1,10 @@
 fullnameOverride: kps
 
+defaultRules:
+  disabled:
+    # Docker Desktop kind nodes share the VM clock and run no node NTP daemon.
+    NodeClockNotSynchronising: true
+
 # The stock kind control plane binds these metrics endpoints to loopback
 # or requires credentials the default monitors do not have.
 kubeControllerManager:

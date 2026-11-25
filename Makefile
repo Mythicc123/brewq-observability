@@ -34,7 +34,7 @@ install: helm-repo ## Install the monitoring stack using the current Kubernetes 
 			kubectl -n $(NAMESPACE) create secret generic grafana-admin --from-env-file=/dev/stdin; \
 	fi
 	helm upgrade --install kps $(KPS_CHART) --version $(KPS_VERSION) \
-		--namespace $(NAMESPACE) --values $(KPS_VALUES) --wait --timeout 10m
+		--namespace $(NAMESPACE) --values $(KPS_VALUES) --wait --timeout 10m --hide-notes
 	kubectl wait --for=condition=Established --timeout=120s \
 		crd/servicemonitors.monitoring.coreos.com crd/prometheusrules.monitoring.coreos.com
 	helm upgrade --install brewq-monitoring $(MONITORING_CHART) \

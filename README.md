@@ -38,9 +38,13 @@ make grafana-password
 ```
 
 Open Grafana at `http://grafana.localtest.me`. The initial username is
-`admin`. Open the dashboards listed below. Check the brewq scrape targets
-at `http://prometheus.localtest.me/targets` and run `make alerts` to list
-firing alerts. Alertmanager is at `http://alertmanager.localtest.me`.
+`admin`. Use `make grafana-password` to read the password from the
+`grafana-admin` Secret. On first install, allow a couple of minutes for
+Prometheus to reload the Brewq configuration and collect enough samples
+for the recording rules. Check that at least two Brewq pod targets are up
+at `http://prometheus.localtest.me/targets`, then open the dashboards
+listed below. Run `make alerts` to list firing alerts. Alertmanager is at
+`http://alertmanager.localtest.me`.
 
 If the Gateway is unavailable, run `make port-forward-grafana`,
 `make port-forward-prometheus` or `make port-forward-alertmanager` in a
@@ -113,6 +117,13 @@ Helm wraps this file as a PrometheusRule and `promtool` tests the same file.
   kube-proxy scrapes because default kind does not expose their metrics
   in a form the chart can scrape. Kubelet, cAdvisor, CoreDNS,
   kube-state-metrics and node exporter provide the remaining signals.
+- Docker Desktop kind nodes share the VM clock. The stack disables the
+  per-node `NodeClockNotSynchronising` alert because the guest kernel
+  reports NTP as unsynchronised even when the nodes agree with the Mac.
+  During the local test, Prometheus briefly reported
+  `PrometheusMissingRuleEvaluations` and duplicate rule timestamps while
+  the VM clock was making small corrections. The warning cleared after
+  scheduled evaluations stabilised.
 - The load generator sends five requests per second by default. Set
   `trafficGenerator.enabled=false` when using other traffic.
 - Prometheus discovers rules and monitors across namespaces. The local
